@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/v1/:match*",
+      "destination": "https://medichronicle-backend.onrender.com/api/v1/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
