@@ -17,6 +17,7 @@ The platform transforms fragmented patient healthcare records into an organized,
 ## 🌟 Public Deployment & Repository Links
 
 - **GitHub Repository:** [https://github.com/manuvishnawat01/FinalYearProject](https://github.com/manuvishnawat01/FinalYearProject)
+- **Frontend Live Web Application (Vercel):** [https://final-year-project-seven-wheat.vercel.app](https://final-year-project-seven-wheat.vercel.app)
 - **Backend API Live URL (Render):** [https://medichronicle-backend.onrender.com](https://medichronicle-backend.onrender.com)
 - **Interactive API Documentation:** [https://medichronicle-backend.onrender.com/docs](https://medichronicle-backend.onrender.com/docs) (Swagger UI) & [https://medichronicle-backend.onrender.com/redoc](https://medichronicle-backend.onrender.com/redoc)
 - **Health Check Endpoint:** [https://medichronicle-backend.onrender.com/health](https://medichronicle-backend.onrender.com/health)
