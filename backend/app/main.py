@@ -27,6 +27,19 @@ app.add_middleware(
 # Mount API v1
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+@app.on_event("startup")
+def on_startup():
+    try:
+        import sys
+        from pathlib import Path
+        backend_dir = Path(__file__).resolve().parent.parent
+        if str(backend_dir) not in sys.path:
+            sys.path.insert(0, str(backend_dir))
+        from seed_data import seed_database
+        seed_database()
+    except Exception as e:
+        print(f"Startup seeder notice: {e}")
+
 @app.get("/")
 def root():
     return {
