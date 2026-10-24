@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #F7F9FC;
+    --card-bg: #FFFFFF;
+    --primary: #1D4ED8;
+    --secondary: #0F766E;
+    --text-main: #172554;
+    --text-muted: #64748B;
+    --warning: #B45309;
+    --error: #DC2626;
+  }
+
+  body {
+    background-color: #F7F9FC;
+    color: #172554;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Standardized Typography and Healthcare Card Styling */
+.health-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+}
+
+.health-card-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.health-card-hover:hover {
+  border-color: #93C5FD;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* Custom Healthcare Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
