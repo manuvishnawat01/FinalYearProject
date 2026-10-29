@@ -57,6 +57,8 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 backend/exports/*
 !backend/exports/.gitkeep
+MediChronicle_AI_Complete_Project_Report.pdf
+generate_project_pdf.py
 
 # Environment variables & secrets
 .env
