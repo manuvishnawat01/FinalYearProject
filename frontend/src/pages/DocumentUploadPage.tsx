@@ -261,10 +261,10 @@ export const DocumentUploadPage: React.FC = () => {
               <div className="bg-blue-950/60 rounded-lg p-4 border border-blue-800/60">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-300 mb-1.5 flex items-center">
                   <FileText className="w-3.5 h-3.5 mr-1.5 text-cyan-400" />
-                  Plain-Language Summary
+                  Plain-Language Summary ({analysisLang === 'en' ? 'English' : 'हिन्दी'})
                 </h4>
                 <p className="text-xs text-slate-200 leading-relaxed">
-                  {analysis.plain_language_summary}
+                  {analysis.executive_summary || analysis.plain_language_summary}
                 </p>
               </div>
 
@@ -274,49 +274,52 @@ export const DocumentUploadPage: React.FC = () => {
                   Key Biomarkers & Clinical Evidence
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {analysis.observations_explained?.map((obs: any, idx: number) => {
-                    const isHigh = obs.status === 'high';
-                    const isLow = obs.status === 'low';
+                  {(analysis.observations || analysis.observations_explained || []).map((obs: any, idx: number) => {
+                    const isOut = obs.is_out_of_range || obs.status === 'high' || obs.status === 'low';
+                    const testName = obs.test_name || obs.original_name;
+                    const val = obs.actual_value || obs.extracted_value;
+                    const refLimits = obs.reference_range || obs.reference_range_in_report || 'Standard Reference';
+                    const explanationText = obs.plain_language_explanation;
+                    const sourceText = obs.evidence_claim_source || obs.claim_source;
+
                     return (
                       <div
                         key={idx}
                         className={`p-3.5 rounded-lg border transition ${
-                          isHigh
+                          isOut
                             ? 'bg-amber-950/20 border-amber-600/40 text-amber-100'
-                            : isLow
-                            ? 'bg-cyan-950/20 border-cyan-600/40 text-cyan-100'
                             : 'bg-slate-800/60 border-slate-700 text-slate-200'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-bold text-xs text-white">{obs.original_name}</span>
+                          <span className="font-bold text-xs text-white">{testName}</span>
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                              isHigh
+                              isOut
                                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                : isLow
-                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                                 : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                             }`}
                           >
-                            {obs.status?.toUpperCase() || 'NORMAL'}
+                            {isOut ? 'OUT OF RANGE' : 'IN RANGE'}
                           </span>
                         </div>
 
                         <div className="text-xs mb-2 flex items-baseline space-x-2">
-                          <span className="font-mono font-bold text-sm text-cyan-300">{obs.extracted_value}</span>
+                          <span className="font-mono font-bold text-sm text-cyan-300">
+                            {val} {obs.unit || ''}
+                          </span>
                           <span className="text-[11px] text-slate-400">
-                            (Ref Range: {obs.reference_range_in_report || 'Standard Reference'})
+                            (Ref: {refLimits})
                           </span>
                         </div>
 
                         <p className="text-[11px] text-slate-300 mb-2 leading-relaxed">
-                          {obs.plain_language_explanation}
+                          {explanationText}
                         </p>
 
-                        {obs.claim_source && (
+                        {sourceText && (
                           <div className="pt-2 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400">
-                            <span className="truncate">Source: {obs.claim_source}</span>
+                            <span className="truncate">Evidence: {sourceText}</span>
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1" />
                           </div>
                         )}
@@ -327,14 +330,14 @@ export const DocumentUploadPage: React.FC = () => {
               </div>
 
               {/* Questions for Doctor */}
-              {analysis.suggested_questions_for_doctor && analysis.suggested_questions_for_doctor.length > 0 && (
+              {((analysis.clinical_discussion_questions || analysis.suggested_questions_for_doctor) || []).length > 0 && (
                 <div className="bg-slate-800/80 rounded-lg p-4 border border-slate-700">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-300 mb-2 flex items-center">
                     <HelpCircle className="w-3.5 h-3.5 mr-1.5 text-cyan-400" />
-                    Recommended Questions for Your Next Doctor Visit
+                    Recommended Discussion Questions for Your Doctor
                   </h4>
                   <ul className="space-y-1.5 text-xs text-slate-200">
-                    {analysis.suggested_questions_for_doctor.map((q: string, i: number) => (
+                    {(analysis.clinical_discussion_questions || analysis.suggested_questions_for_doctor).map((q: string, i: number) => (
                       <li key={i} className="flex items-start">
                         <span className="text-cyan-400 font-bold mr-2">•</span>
                         <span>{q}</span>
