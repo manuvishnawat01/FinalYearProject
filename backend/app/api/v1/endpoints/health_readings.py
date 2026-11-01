@@ -92,6 +92,7 @@ def record_daily_health_reading(
     db.refresh(reading)
     return reading
 
+@router.get("", response_model=List[ReadingOut], include_in_schema=False)
 @router.get("/", response_model=List[ReadingOut])
 def list_daily_readings(
     patient_id: Optional[int] = None,

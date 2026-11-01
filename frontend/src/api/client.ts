@@ -34,6 +34,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new Error(errorDetail);
   }
 
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new Error(`Unexpected non-JSON response from server (HTTP ${response.status}): ${text.slice(0, 100)}`);
+  }
+
   return response.json();
 }
 
@@ -45,16 +51,16 @@ export const api = {
 
   // --- Core: Documents & Observations ---
   uploadDocument: (formData: FormData) => request<any>('/documents/upload', { method: 'POST', body: formData }),
-  listDocuments: (params = '') => request<any[]>(`/documents/${params ? '?' + params : ''}`),
+  listDocuments: (params = '') => request<any[]>(`/documents${params ? '?' + params : ''}`),
   listObservations: (params = '') => request<any[]>(`/documents/observations/list${params ? '?' + params : ''}`),
   confirmObservation: (data: any) => request<any>('/documents/confirm-observation', { method: 'POST', body: JSON.stringify(data) }),
 
   // --- Core: Daily Health Readings ---
-  recordReading: (data: any) => request<any>('/health-readings/', { method: 'POST', body: JSON.stringify(data) }),
-  listReadings: (params = '') => request<any[]>(`/health-readings/${params ? '?' + params : ''}`),
+  recordReading: (data: any) => request<any>('/health-readings', { method: 'POST', body: JSON.stringify(data) }),
+  listReadings: (params = '') => request<any[]>(`/health-readings${params ? '?' + params : ''}`),
 
   // --- Module 1: Timeline & Search ---
-  getTimeline: (params = '') => request<any[]>(`/timeline/${params ? '?' + params : ''}`),
+  getTimeline: (params = '') => request<any[]>(`/timeline${params ? '?' + params : ''}`),
   searchHistory: (query: string, targetPatientId?: number) =>
     request<any>('/timeline/search', { method: 'POST', body: JSON.stringify({ query, target_patient_id: targetPatientId }) }),
   compareObservations: (observationIds: number[], patientId?: number) =>
@@ -65,8 +71,8 @@ export const api = {
 
   // --- Module 2: Medicine Salt Intelligence ---
   addMedication: (data: any, patientId?: number) =>
-    request<any>(`/medicines/${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
-  listMedications: (params = '') => request<any[]>(`/medicines/${params ? '?' + params : ''}`),
+    request<any>(`/medicines${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
+  listMedications: (params = '') => request<any[]>(`/medicines${params ? '?' + params : ''}`),
   checkDuplicateSalts: (patientId?: number) =>
     request<any[]>(`/medicines/duplicate-check${patientId ? '?patient_id=' + patientId : ''}`),
   checkDrugInteractions: (simulateOutage = false, patientId?: number) =>
@@ -78,8 +84,8 @@ export const api = {
 
   // --- Module 4: Supplements ---
   addSupplement: (data: any, patientId?: number) =>
-    request<any>(`/supplements/${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
-  listSupplements: (params = '') => request<any[]>(`/supplements/${params ? '?' + params : ''}`),
+    request<any>(`/supplements${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
+  listSupplements: (params = '') => request<any[]>(`/supplements${params ? '?' + params : ''}`),
   analyzeSupplementIntake: (patientId?: number) =>
     request<any[]>(`/supplements/intake-analysis${patientId ? '?patient_id=' + patientId : ''}`),
 
@@ -93,8 +99,8 @@ export const api = {
 
   // --- Module 6: Symptom Correlator ---
   recordSymptom: (data: any, patientId?: number) =>
-    request<any>(`/symptoms/${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
-  listSymptoms: (patientId?: number) => request<any[]>(`/symptoms/${patientId ? '?patient_id=' + patientId : ''}`),
+    request<any>(`/symptoms${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
+  listSymptoms: (patientId?: number) => request<any[]>(`/symptoms${patientId ? '?patient_id=' + patientId : ''}`),
   correlateSymptom: (symptomId: number) => request<any>(`/symptoms/correlate/${symptomId}`),
 
   // --- Module 7: Medicine Change Impact ---
@@ -140,9 +146,13 @@ export const api = {
 
   // --- Module 12: Expenses & Duplicate Tests ---
   recordExpense: (data: any, patientId?: number) =>
-    request<any>(`/expenses/${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
-  listExpenses: (category?: string, patientId?: number) =>
-    request<any[]>(`/expenses/?${category ? 'category=' + category : ''}${patientId ? '&patient_id=' + patientId : ''}`),
+    request<any>(`/expenses${patientId ? '?patient_id=' + patientId : ''}`, { method: 'POST', body: JSON.stringify(data) }),
+  listExpenses: (category?: string, patientId?: number) => {
+    const q = [];
+    if (category) q.push(`category=${encodeURIComponent(category)}`);
+    if (patientId) q.push(`patient_id=${patientId}`);
+    return request<any[]>(`/expenses${q.length ? '?' + q.join('&') : ''}`);
+  },
   getExpenseSummary: (patientId?: number) =>
     request<any>(`/expenses/summary${patientId ? '?patient_id=' + patientId : ''}`),
   checkDuplicateTests: (reviewWindowDays = 90, patientId?: number) =>

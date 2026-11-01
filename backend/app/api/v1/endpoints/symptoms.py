@@ -39,6 +39,7 @@ def record_symptom(
 
     return sym
 
+@router.get("", response_model=List[SymptomOut], include_in_schema=False)
 @router.get("/", response_model=List[SymptomOut])
 def list_symptoms(
     patient_id: Optional[int] = None,

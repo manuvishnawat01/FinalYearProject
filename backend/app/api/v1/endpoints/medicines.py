@@ -51,6 +51,7 @@ def add_medication(
 
     return med
 
+@router.get("", response_model=List[MedicationOut], include_in_schema=False)
 @router.get("/", response_model=List[MedicationOut])
 def list_medications(
     patient_id: Optional[int] = None,

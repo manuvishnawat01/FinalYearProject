@@ -46,6 +46,7 @@ def add_supplement(
 
     return supp
 
+@router.get("", response_model=List[SupplementOut], include_in_schema=False)
 @router.get("/", response_model=List[SupplementOut])
 def list_supplements(
     patient_id: Optional[int] = None,

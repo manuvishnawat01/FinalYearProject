@@ -15,6 +15,7 @@ from app.services.timeline_service import TimelineService, SearchService
 
 router = APIRouter()
 
+@router.get("", response_model=List[HealthEventOut], include_in_schema=False)
 @router.get("/", response_model=List[HealthEventOut])
 def get_timeline(
     patient_id: Optional[int] = None,

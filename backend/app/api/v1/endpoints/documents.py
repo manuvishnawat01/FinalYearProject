@@ -133,6 +133,7 @@ def upload_medical_document(
     db.refresh(doc)
     return doc
 
+@router.get("", response_model=List[DocumentOut], include_in_schema=False)
 @router.get("/", response_model=List[DocumentOut])
 def list_documents(
     patient_id: Optional[int] = None,
@@ -148,18 +149,6 @@ def list_documents(
         query = query.filter(MedicalDocument.category == category)
     return query.order_by(MedicalDocument.upload_date.desc()).all()
 
-@router.get("/{id}", response_model=DocumentOut)
-def get_document(
-    id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    doc = db.query(MedicalDocument).filter(MedicalDocument.id == id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Medical document not found.")
-    verify_patient_access(db, current_user, doc.patient_id, required_permission="can_view_reports", resource_type="document", resource_id=str(id))
-    return doc
-
 @router.get("/observations/list", response_model=List[ObservationOut])
 def list_observations(
     patient_id: Optional[int] = None,
@@ -174,6 +163,18 @@ def list_observations(
     if test_name:
         query = query.filter(MedicalObservation.normalized_name.ilike(f"%{test_name.lower().strip()}%"))
     return query.order_by(MedicalObservation.observation_date.desc()).all()
+
+@router.get("/{id}", response_model=DocumentOut)
+def get_document(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    doc = db.query(MedicalDocument).filter(MedicalDocument.id == id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Medical document not found.")
+    verify_patient_access(db, current_user, doc.patient_id, required_permission="can_view_reports", resource_type="document", resource_id=str(id))
+    return doc
 
 @router.post("/confirm-observation", response_model=ObservationOut)
 def confirm_extracted_observation(

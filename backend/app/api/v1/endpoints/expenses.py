@@ -33,6 +33,7 @@ def record_expense(
     exp = ExpenseDuplicateService.add_expense(db=db, patient_id=target_patient_id, exp_in=exp_in)
     return exp
 
+@router.get("", response_model=List[ExpenseOut], include_in_schema=False)
 @router.get("/", response_model=List[ExpenseOut])
 def list_expenses(
     patient_id: Optional[int] = None,

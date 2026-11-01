@@ -3,7 +3,19 @@ import { api } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 import PageHeader from '../components/PageHeader';
 import CrossModuleLink from '../components/CrossModuleLink';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, Languages, Calendar } from 'lucide-react';
+import {
+  UploadCloud,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Languages,
+  Sparkles,
+  HelpCircle,
+  ExternalLink,
+  ChevronRight,
+  ShieldCheck
+} from 'lucide-react';
 
 export const DocumentUploadPage: React.FC = () => {
   const [documents, setDocuments] = useState<any[]>([]);
@@ -14,22 +26,59 @@ export const DocumentUploadPage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  // In-page Instant Report Analysis states
+  const [analysis, setAnalysis] = useState<any | null>(null);
+  const [analysisDoc, setAnalysisDoc] = useState<any | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisLang, setAnalysisLang] = useState<'en' | 'hi'>('en');
+
   const fetchDocsAndObs = async () => {
     try {
-      const [docs, obs] = await Promise.all([
+      const [docs, obs] = await Promise.allSettled([
         api.listDocuments(),
         api.listObservations(),
       ]);
-      setDocuments(docs);
-      setObservations(obs);
+
+      if (docs.status === 'fulfilled' && Array.isArray(docs.value)) {
+        setDocuments(docs.value);
+      }
+      if (obs.status === 'fulfilled' && Array.isArray(obs.value)) {
+        setObservations(obs.value);
+      }
     } catch (err: any) {
-      console.error(err);
+      console.error('Error fetching docs and observations:', err);
     }
   };
 
   useEffect(() => {
     fetchDocsAndObs();
   }, []);
+
+  const handleAnalyzeDocument = async (docId: number, lang: 'en' | 'hi' = analysisLang) => {
+    setAnalysisLoading(true);
+    try {
+      const res = await api.explainReport(docId, lang);
+      setAnalysis(res);
+      const targetDoc = documents.find((d) => d.id === docId);
+      if (targetDoc) {
+        setAnalysisDoc(targetDoc);
+      } else {
+        setAnalysisDoc({ id: docId });
+      }
+    } catch (err: any) {
+      console.error('Analysis failed:', err);
+      alert(`Report analysis failed: ${err.message}`);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  const handleLanguageSwitch = (newLang: 'en' | 'hi') => {
+    setAnalysisLang(newLang);
+    if (analysisDoc?.id) {
+      handleAnalyzeDocument(analysisDoc.id, newLang);
+    }
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,10 +92,16 @@ export const DocumentUploadPage: React.FC = () => {
     formData.append('document_date', docDate);
 
     try {
-      await api.uploadDocument(formData);
-      setMessage('Document ingested successfully. Candidate observations extracted for explicit patient confirmation.');
+      const uploadedDoc = await api.uploadDocument(formData);
+      setMessage('Document ingested successfully! Candidate observations extracted and analyzed below.');
       setFile(null);
-      fetchDocsAndObs();
+      await fetchDocsAndObs();
+
+      // Automatically generate AI Analysis right on the page
+      if (uploadedDoc && uploadedDoc.id) {
+        setAnalysisDoc(uploadedDoc);
+        await handleAnalyzeDocument(uploadedDoc.id, analysisLang);
+      }
     } catch (err: any) {
       setMessage(`Upload failed: ${err.message}`);
     } finally {
@@ -70,11 +125,11 @@ export const DocumentUploadPage: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Document Ingestion & Clinical Extraction"
-        description="Securely ingest clinical documents (PDF, JPG, PNG). Text and laboratory measurements are extracted as candidate observations requiring explicit review before becoming verified medical facts."
+        description="Securely ingest clinical documents (PDF, JPG, PNG). Laboratory measurements are extracted as candidate observations requiring explicit review before becoming verified medical facts."
         category="Health Records"
         breadcrumbs={[{ label: 'Document Ingestion' }]}
         primaryAction={
-          <CrossModuleLink to="/translator" label="Report Explainer" variant="primary" size="sm" />
+          <CrossModuleLink to="/translator" label="Full Report Explainer" variant="primary" size="sm" />
         }
         secondaryAction={
           <CrossModuleLink to="/timeline" label="Health History" variant="slate" size="sm" />
@@ -120,8 +175,7 @@ export const DocumentUploadPage: React.FC = () => {
                 value={docDate}
                 onChange={(e) => setDocDate(e.target.value)}
                 className="w-full text-xs border border-slate-300 rounded-lg p-2 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-700 focus:outline-none"
-              >
-              </input>
+              />
             </div>
 
             <div>
@@ -140,15 +194,161 @@ export const DocumentUploadPage: React.FC = () => {
             <button
               type="submit"
               disabled={uploading}
-              className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg shadow-xs transition disabled:opacity-50"
+              className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg shadow-xs transition disabled:opacity-50 flex items-center space-x-1.5"
             >
-              {uploading ? 'Processing OCR Extraction...' : 'Upload & Extract Observations'}
+              {uploading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  <span>Processing OCR & Extracting Analysis...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 mr-1 text-blue-200" />
+                  <span>Upload & Analyze Report</span>
+                </>
+              )}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Candidate vs Confirmed Observations Review Stream */}
+      {/* Instant AI Clinical Report Analysis Card */}
+      {(analysis || analysisLoading) && (
+        <div className="bg-gradient-to-br from-blue-900 to-slate-900 text-white rounded-xl border border-blue-800 p-6 shadow-md space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-blue-800/80 gap-3">
+            <div>
+              <div className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-600/30 text-blue-300 border border-blue-500/30 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5 mr-1 text-cyan-400" />
+                AI CLINICAL REPORT ANALYSIS & EXPLAINER
+              </div>
+              <h3 className="text-base font-bold text-white">
+                {analysisDoc?.file_name ? `Analysis for: ${analysisDoc.file_name}` : 'Document Clinical Analysis'}
+              </h3>
+              <p className="text-xs text-blue-200/80">
+                Grounded plain-language interpretation preserving medical facts without diagnostic fabrication.
+              </p>
+            </div>
+
+            {/* Language Switcher */}
+            <div className="inline-flex p-1 bg-slate-800/80 rounded-lg border border-slate-700 self-start sm:self-auto">
+              <button
+                onClick={() => handleLanguageSwitch('en')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition ${
+                  analysisLang === 'en' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                English
+              </button>
+              <button
+                onClick={() => handleLanguageSwitch('hi')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition ${
+                  analysisLang === 'hi' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                हिन्दी (Hindi)
+              </button>
+            </div>
+          </div>
+
+          {analysisLoading ? (
+            <div className="py-10 text-center space-y-2">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-cyan-400" />
+              <p className="text-xs text-blue-200">Analyzing observations and correlating clinical authorities...</p>
+            </div>
+          ) : analysis ? (
+            <div className="space-y-5">
+              {/* Plain Language Summary */}
+              <div className="bg-blue-950/60 rounded-lg p-4 border border-blue-800/60">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-300 mb-1.5 flex items-center">
+                  <FileText className="w-3.5 h-3.5 mr-1.5 text-cyan-400" />
+                  Plain-Language Summary
+                </h4>
+                <p className="text-xs text-slate-200 leading-relaxed">
+                  {analysis.plain_language_summary}
+                </p>
+              </div>
+
+              {/* Analyzed Observations Table */}
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-300 mb-2">
+                  Key Biomarkers & Clinical Evidence
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {analysis.observations_explained?.map((obs: any, idx: number) => {
+                    const isHigh = obs.status === 'high';
+                    const isLow = obs.status === 'low';
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3.5 rounded-lg border transition ${
+                          isHigh
+                            ? 'bg-amber-950/20 border-amber-600/40 text-amber-100'
+                            : isLow
+                            ? 'bg-cyan-950/20 border-cyan-600/40 text-cyan-100'
+                            : 'bg-slate-800/60 border-slate-700 text-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-xs text-white">{obs.original_name}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              isHigh
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : isLow
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            }`}
+                          >
+                            {obs.status?.toUpperCase() || 'NORMAL'}
+                          </span>
+                        </div>
+
+                        <div className="text-xs mb-2 flex items-baseline space-x-2">
+                          <span className="font-mono font-bold text-sm text-cyan-300">{obs.extracted_value}</span>
+                          <span className="text-[11px] text-slate-400">
+                            (Ref Range: {obs.reference_range_in_report || 'Standard Reference'})
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-300 mb-2 leading-relaxed">
+                          {obs.plain_language_explanation}
+                        </p>
+
+                        {obs.claim_source && (
+                          <div className="pt-2 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400">
+                            <span className="truncate">Source: {obs.claim_source}</span>
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Questions for Doctor */}
+              {analysis.suggested_questions_for_doctor && analysis.suggested_questions_for_doctor.length > 0 && (
+                <div className="bg-slate-800/80 rounded-lg p-4 border border-slate-700">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-300 mb-2 flex items-center">
+                    <HelpCircle className="w-3.5 h-3.5 mr-1.5 text-cyan-400" />
+                    Recommended Questions for Your Next Doctor Visit
+                  </h4>
+                  <ul className="space-y-1.5 text-xs text-slate-200">
+                    {analysis.suggested_questions_for_doctor.map((q: string, i: number) => (
+                      <li key={i} className="flex items-start">
+                        <span className="text-cyan-400 font-bold mr-2">•</span>
+                        <span>{q}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Candidate Observations Review Stream */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
@@ -185,38 +385,42 @@ export const DocumentUploadPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {observations.map((obs) => (
-                  <tr key={obs.id} className="hover:bg-slate-50/60 transition">
-                    <td className="p-3 font-bold text-blue-950">{obs.observation_name}</td>
-                    <td className="p-3 font-mono font-bold text-blue-900">
-                      {obs.value} {obs.unit}
-                    </td>
-                    <td className="p-3 text-slate-500 font-mono">{obs.reference_range || 'N/A'}</td>
-                    <td className="p-3 text-slate-600 font-mono">{obs.observation_date}</td>
-                    <td className="p-3">
-                      <StatusBadge status={obs.verification_status} />
-                    </td>
-                    <td className="p-3 text-right">
-                      {obs.verification_status !== 'confirmed_by_user' ? (
-                        <button
-                          onClick={() => handleConfirmObservation(obs.id)}
-                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded transition shadow-2xs"
-                        >
-                          Confirm Value
-                        </button>
-                      ) : (
-                        <CrossModuleLink to={`/trends?metric=${encodeURIComponent(obs.observation_name)}`} label="View Trend" variant="primary" />
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {observations.map((obs) => {
+                  const displayValue = obs.numeric_value ?? obs.value ?? obs.string_value ?? '-';
+                  const displayRange = obs.reference_range_text ?? obs.reference_range ?? 'Standard Reference';
+                  return (
+                    <tr key={obs.id} className="hover:bg-slate-50/60 transition">
+                      <td className="p-3 font-bold text-blue-950">{obs.observation_name}</td>
+                      <td className="p-3 font-mono font-bold text-blue-900">
+                        {displayValue} {obs.unit || ''}
+                      </td>
+                      <td className="p-3 text-slate-500 font-mono text-[11px]">{displayRange}</td>
+                      <td className="p-3 text-slate-600 font-mono">{obs.observation_date}</td>
+                      <td className="p-3">
+                        <StatusBadge status={obs.verification_status} />
+                      </td>
+                      <td className="p-3 text-right">
+                        {obs.verification_status !== 'confirmed_by_user' ? (
+                          <button
+                            onClick={() => handleConfirmObservation(obs.id)}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded transition shadow-2xs"
+                          >
+                            Confirm Value
+                          </button>
+                        ) : (
+                          <CrossModuleLink to={`/trends?metric=${encodeURIComponent(obs.observation_name)}`} label="View Trend" variant="primary" />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Uploaded Documents Archive */}
+      {/* Uploaded Documents Vault */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
         <h3 className="text-sm font-bold text-blue-950 flex items-center pb-2 border-b border-slate-100">
           <FileText className="w-4 h-4 mr-2 text-blue-700" />
@@ -228,21 +432,33 @@ export const DocumentUploadPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {documents.map((d) => (
-              <div key={d.id} className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex flex-col justify-between">
+              <div key={d.id} className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex flex-col justify-between space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
-                      {d.document_type}
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      {d.category || d.document_type || 'Clinical Document'}
                     </span>
                     <span className="text-[11px] text-slate-400 font-mono">{d.document_date}</span>
                   </div>
-                  <h4 className="font-bold text-xs text-blue-950 truncate mt-1">{d.file_name}</h4>
+                  <h4 className="font-bold text-xs text-blue-950 truncate mt-1" title={d.file_name}>
+                    {d.file_name}
+                  </h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">Status: {d.status}</p>
                 </div>
 
-                <div className="pt-2.5 mt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                  <CrossModuleLink to={`/translator?doc=${d.id}`} label="Explain Report" variant="secondary" />
-                  <CrossModuleLink to="/timeline" label="Health History" variant="slate" />
+                <div className="space-y-2 pt-2 border-t border-slate-200">
+                  <button
+                    onClick={() => handleAnalyzeDocument(d.id)}
+                    className="w-full py-1.5 px-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded font-semibold text-xs flex items-center justify-center space-x-1 transition shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-cyan-200" />
+                    <span>Analyze Report with AI</span>
+                  </button>
+
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <CrossModuleLink to={`/translator?doc=${d.id}`} label="Full Explainer" variant="secondary" />
+                    <CrossModuleLink to="/timeline" label="Health History" variant="slate" />
+                  </div>
                 </div>
               </div>
             ))}

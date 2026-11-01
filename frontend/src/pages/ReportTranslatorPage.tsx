@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 import PageHeader from '../components/PageHeader';
@@ -6,6 +7,8 @@ import CrossModuleLink from '../components/CrossModuleLink';
 import { Languages, FileText, CheckCircle2, ExternalLink, HelpCircle, AlertCircle, Sparkles } from 'lucide-react';
 
 export const ReportTranslatorPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const docParam = searchParams.get('doc');
   const [documents, setDocuments] = useState<any[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
@@ -14,16 +17,22 @@ export const ReportTranslatorPage: React.FC = () => {
 
   useEffect(() => {
     api.listDocuments().then((docs) => {
-      setDocuments(docs);
-      if (docs.length > 0) setSelectedDocId(docs[0].id);
-    });
-  }, []);
+      setDocuments(docs || []);
+      if (docs && docs.length > 0) {
+        if (docParam && docs.some((d: any) => d.id === Number(docParam))) {
+          setSelectedDocId(Number(docParam));
+        } else {
+          setSelectedDocId(docs[0].id);
+        }
+      }
+    }).catch(console.error);
+  }, [docParam]);
 
-  const handleTranslate = async (lang = language) => {
-    if (!selectedDocId) return;
+  const handleTranslate = async (lang = language, docId = selectedDocId) => {
+    if (!docId) return;
     setLoading(true);
     try {
-      const res = await api.explainReport(selectedDocId, lang);
+      const res = await api.explainReport(docId, lang);
       setExplanation(res);
     } catch (err: any) {
       alert(`Translation failed: ${err.message}`);
@@ -34,7 +43,7 @@ export const ReportTranslatorPage: React.FC = () => {
 
   useEffect(() => {
     if (selectedDocId) {
-      handleTranslate(language);
+      handleTranslate(language, selectedDocId);
     }
   }, [selectedDocId, language]);
 
